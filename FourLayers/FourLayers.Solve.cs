@@ -28,17 +28,17 @@ public static partial class FourLayers
             return root;
         }
 
-        var (chunks, kerne) = Chunk.CreateChunks(challenge.FieldWidth);
+        var (slots, kerne) = Slot.CreateSlots(challenge.FieldWidth);
         var resultingStats = new List<Stats>();
 
         try
         {
-            Parallel.ForEach(chunks, new ParallelOptions { MaxDegreeOfParallelism = kerne }, chunk =>
+            Parallel.ForEach(slots, new ParallelOptions { MaxDegreeOfParallelism = kerne }, slot =>
                 {
-                    var chunkStats = Stats.Clone(stats);
+                    var slotStats = Stats.Clone(stats);
                     var startNode = CreateRoot();
-                    chunk.Result = InternalSolveChallenge(startNode, challenge.MaxMoves, chunkStats, chunk.SlotStart, chunk.SlotSize);
-                    resultingStats.Add(chunkStats);
+                    slot.Result = InternalSolveChallenge(startNode, challenge.MaxMoves, slotStats, slot.SlotStart, slot.SlotSize);
+                    resultingStats.Add(slotStats);
                 }
             );
         }
@@ -50,8 +50,8 @@ public static partial class FourLayers
             }
             return (null, null);
         }
-        var successFullChunk = chunks.FirstOrDefault(c => c.Result.Moves != null);
-        var moves = successFullChunk?.Result.Moves;
+        var successFullSlot = slots.FirstOrDefault(c => c.Result.Moves != null);
+        var moves = successFullSlot?.Result.Moves;
         return (moves, Stats.Aggregate(resultingStats));
     }
 
