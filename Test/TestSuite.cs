@@ -1,4 +1,5 @@
-﻿using System.Numerics;
+﻿using System.Collections.Concurrent;
+using System.Numerics;
 using System.Runtime.Intrinsics.X86;
 using NUnit.Framework;
 
@@ -6,6 +7,7 @@ namespace FourLayers
 {
     public class TestSuite
     {
+
         [Test]
         public void Test_CreateOrderedField()
         {
@@ -46,5 +48,23 @@ namespace FourLayers
             Assert.That(moveResult.IsUnchanged, Is.EqualTo(false));
             Assert.That(moveResult.WasAffectedLineInOrder, Is.EqualTo(true));
         }
+
+        [Test]
+        public void Test_CreateSlots()
+        {
+            for (var i = 1; i < 128; i++)
+            {
+                for (var ii = 2; ii <= 4; ii++)
+                {
+                    var kerne = i;
+                    var fieldWidth = ii * 2;
+                    var slots = Slot.CreateSlots((byte)fieldWidth, (byte)kerne).Slots;
+                    var slotCount = Math.Min(kerne, fieldWidth * 4);
+                    Assert.That(slots.Count, Is.EqualTo(slotCount));
+                    Assert.That(slots.Sum(slot => slot.SlotSize), Is.EqualTo(fieldWidth * 4));
+                }
+            }
+        }
+
     }
 }
