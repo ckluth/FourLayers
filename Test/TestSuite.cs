@@ -7,7 +7,6 @@ namespace FourLayers
 {
     public class TestSuite
     {
-
         [Test]
         public void Test_CreateOrderedField()
         {
@@ -15,36 +14,36 @@ namespace FourLayers
             var lookup = FourLayers.CreateOrderedFieldLookUp(fieldWidth);
             var field = FourLayers.CreateOrderedField(lookup);
             FourLayers.PrintField(field, useColors: false);
-            var rating = FourLayers.GetRating(field, lookup, fieldWidth);
-            Console.WriteLine(rating);
-            Assert.That( rating, Is.EqualTo(0));
+            var disorder = FourLayers.CalcDisorder(field, lookup, fieldWidth);
+            Console.WriteLine(disorder);
+            Assert.That(disorder, Is.EqualTo(0));
         }
 
         [Test]
-        public void Test_GetRating()
+        public void Test_CalcDisorder()
         {
             const byte fieldWidth = 8;
             var lookup = FourLayers.CreateOrderedFieldLookUp(fieldWidth);
             var field = FourLayers.CreateOrderedField(lookup);
             FourLayers.PrintField(field, useColors: false);
-            var rating = FourLayers.GetRating(field, lookup, fieldWidth);
-            Console.WriteLine(rating);
-            Assert.That(rating, Is.EqualTo(0));
+            var disorder = FourLayers.CalcDisorder(field, lookup, fieldWidth);
+            Console.WriteLine(disorder);
+            Assert.That(disorder, Is.EqualTo(0));
 
-            // Move 0 => IsUnchanged => Still Rating 0 
+            // Move 0 => IsUnchanged => Still Disorder 0 
             var moveResult = FourLayers.ProcessMove(field, fieldWidth, lookup, 0);
             FourLayers.PrintField(moveResult.NewField, useColors: false);
-            rating = FourLayers.GetRating(moveResult.NewField, lookup, fieldWidth);
-            Console.WriteLine(rating);
-            Assert.That(rating, Is.EqualTo(0));
+            disorder = FourLayers.CalcDisorder(moveResult.NewField, lookup, fieldWidth);
+            Console.WriteLine(disorder);
+            Assert.That(disorder, Is.EqualTo(0));
             Assert.That(moveResult.IsUnchanged, Is.EqualTo(true)); 
 
-            // Move 1 => Rating 2
+            // Move 1 => Disorder 2
             moveResult = FourLayers.ProcessMove(field, fieldWidth, lookup, 1);
             FourLayers.PrintField(moveResult.NewField, useColors: false);
-            rating = FourLayers.GetRating(moveResult.NewField, lookup, fieldWidth);
-            Console.WriteLine(rating);
-            Assert.That(rating, Is.EqualTo(2));
+            disorder = FourLayers.CalcDisorder(moveResult.NewField, lookup, fieldWidth);
+            Console.WriteLine(disorder);
+            Assert.That(disorder, Is.EqualTo(2));
             Assert.That(moveResult.IsUnchanged, Is.EqualTo(false));
             Assert.That(moveResult.WasAffectedLineInOrder, Is.EqualTo(true));
         }
@@ -66,5 +65,23 @@ namespace FourLayers
             }
         }
 
+        [Test, Explicit]
+        public void Test_CheckDisorder()
+        {
+            const byte fieldWidth = 8;
+            var lookup = FourLayers.CreateOrderedFieldLookUp(fieldWidth);
+            var field = FourLayers.CreateOrderedField(lookup);
+
+            FourLayers.PrintField(field, useColors: false);
+            var moveResult = FourLayers.ProcessMove(field, fieldWidth, lookup, 3);
+            FourLayers.PrintField(moveResult.NewField, useColors: false);
+            var disorder = FourLayers.CalcDisorder(moveResult.NewField, lookup, fieldWidth);
+            Console.WriteLine(disorder);
+
+            moveResult = FourLayers.ProcessMove(moveResult.NewField, fieldWidth, lookup, 4);
+            FourLayers.PrintField(moveResult.NewField, useColors: false);
+            disorder = FourLayers.CalcDisorder(moveResult.NewField, lookup, fieldWidth);
+            Console.WriteLine(disorder);
+        }
     }
 }

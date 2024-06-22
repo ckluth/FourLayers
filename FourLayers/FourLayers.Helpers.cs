@@ -15,16 +15,16 @@ public static partial class FourLayers
     {
         InitChallenges();
     }
-
-    public static Dictionary<byte, Dictionary<byte, byte>> CurrentOrderedFieldLookUp;
-
+    
     public static byte[,] ProcessMoves(byte[,] matrix, IEnumerable<byte> moves)
     {
         var result = (byte[,])matrix.Clone();
-        var kantenlaenge = (byte)matrix.GetLength(0);
+        var fieldWidth = (byte)matrix.GetLength(0);
+        var lookup = CreateOrderedFieldLookUp(fieldWidth);
+        
         foreach (var move in moves)
         {
-            var (mx, _, _) = ProcessMove(result, kantenlaenge, CurrentOrderedFieldLookUp, move);
+            var (mx, _, _) = ProcessMove(result, fieldWidth, lookup, move);
             result = mx;
 
         }

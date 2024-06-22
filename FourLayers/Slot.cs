@@ -6,9 +6,8 @@ namespace FourLayers;
 public class Slot
 {
     //
-    // Für die Parallelisierung
+    // Für die Parallelisierung, um die Teilbäume gleichmäßig auf die gegebenen Kerne aufzuteilen
     //
-
     public byte SlotStart { get; set; }
 
     public byte SlotSize { get; set; }
