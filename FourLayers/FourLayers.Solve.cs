@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -12,8 +13,6 @@ public static partial class FourLayers
 
     public static (List<byte> Moves, Stats Stats) SolveChallenge(Challenge challenge, Stats stats) 
     {
-        CurrentOrderedFieldLookUp = CreateOrderedFieldLookUp(challenge.FieldWidth);
-
         Node CreateRoot()
         {
             var root = new Node
@@ -21,8 +20,9 @@ public static partial class FourLayers
                 Field = challenge.Field,
                 FieldWidth = (byte)challenge.FieldWidth,
                 Depth = 0,
+                MaxDepth = challenge.MaxMoves,
                 MoveFromParent = 255,
-                Rating = 255,
+                Disorder = 255,
 
             };
             return root;
@@ -55,11 +55,12 @@ public static partial class FourLayers
         return (moves, Stats.Aggregate(resultingStats));
     }
 
-    public static (List<byte> Moves, Stats Stats) InternalSolveChallenge(Node root, byte maxMoves, Stats stats, byte slotStart, byte slotSize)
+    private static (List<byte> Moves, Stats Stats) InternalSolveChallenge(Node root, byte maxMoves, Stats stats, byte slotStart, byte slotSize)
     {
         var stack = new Stack<Node>();
         stack.Push(root);
         stats.NodesCreated = 1;
+        var orderedFieldlookup = CreateOrderedFieldLookUp(root.FieldWidth);
 
         while (stack.Count > 0)
         {
@@ -78,18 +79,19 @@ public static partial class FourLayers
             }
 
             // Noch keine Children?
-            if (!currentNode.IsChildrenProcessed && currentNode.Children == null && currentNode.Depth < maxMoves)
+            if (!currentNode.AreAllChildrenProcessed && currentNode.Children == null && currentNode.Depth < maxMoves)
             {
                 currentNode.Children = currentNode.Depth == 0
-                    ? PopulateNode(currentNode, slotStart, slotSize)
-                    : PopulateNode(currentNode, 0, (byte)(currentNode.FieldWidth * 4));
-
-                // Ende
-                if (currentNode.Children.Count == 0) return (null, stats);
-
-                stats.NodesCreated += currentNode.Children.Count;
-                stack.Push(currentNode.Children[0]);
-                continue;
+                    ? PopulateNode(currentNode, slotStart, slotSize, currentNode.MaxDepth, orderedFieldlookup)
+                    : PopulateNode(currentNode, 0, (byte)(currentNode.FieldWidth * 4), currentNode.MaxDepth, orderedFieldlookup);
+                
+                // currentNode.Children == null --> Too much Disorder for remaining Moves  
+                if (currentNode.Children != null)
+                {
+                    stats.NodesCreated += currentNode.Children.Count;
+                    stack.Push(currentNode.Children[0]);
+                    continue;
+                }
             }
 
             // Noch Siblings?
@@ -104,15 +106,28 @@ public static partial class FourLayers
             // Alle Siblings abgegrast
             if (currentNode.Parent == null) continue;
             currentNode.Parent.Children = null;
-            currentNode.Parent.IsChildrenProcessed = true;
+            currentNode.Parent.AreAllChildrenProcessed = true;
 
             stack.Push(currentNode.Parent);
         }
         return (null, stats);
     }
 
-    private static List<Node> PopulateNode(Node currentNode, byte slotStart, byte slotSize)
+    private static List<Node> PopulateNode(Node currentNode, byte slotStart, byte slotSize, byte maxDepth, Dictionary<byte, Dictionary<byte, byte>> orderedFieldLookup) 
     {
+        if (currentNode.Depth > 0)
+        {
+            // Der entscheidende Booster! ;)
+
+            // Too much Disorder for remaining Moves?
+            var depthsLeft = maxDepth - currentNode.Depth;
+            var maxSolvableDisorder = (currentNode.FieldWidth - 2) * depthsLeft;
+            if (currentNode.Disorder > maxSolvableDisorder)
+            {
+                return null;
+            }
+        }
+
         var result = new List<Node>();
         byte childIndex = 0;
 
@@ -122,6 +137,7 @@ public static partial class FourLayers
             {
                 Parent = currentNode,
                 Depth = (byte)(currentNode.Depth + 1),
+                MaxDepth = currentNode.MaxDepth,
                 FieldWidth = currentNode.FieldWidth,
                 MoveFromParent = (byte)move,
                 ChildIndex = childIndex,
@@ -129,7 +145,7 @@ public static partial class FourLayers
             };
 
             //
-            // Check Cycle-Path:
+            // Check Nonsense-Move "Cycle-Path":
             //
             if (nextChild.MoveFromParent == currentNode.MoveFromParent)
             {
@@ -141,34 +157,35 @@ public static partial class FourLayers
                 nextChild.SameMoveCounter = 0;
 
             //
-            // Check Forth-Back:
+            // Check Nonsense-Move "Forth-Back":
             //
             var isForthBackMove = Math.Abs(currentNode.MoveFromParent - nextChild.MoveFromParent) == currentNode.FieldWidth;
             if (isForthBackMove) continue;
             
-            var (newField, isUnchanged, wasAffectedLineInOrder) = ProcessMove(currentNode.Field, currentNode.FieldWidth, CurrentOrderedFieldLookUp, move);
+            var (newField, isUnchanged, wasAffectedLineInOrder) = ProcessMove(currentNode.Field, currentNode.FieldWidth, orderedFieldLookup, move);
             
             if (isUnchanged) continue;
 
+            if (wasAffectedLineInOrder) nextChild.Handicap = 64;
+
             nextChild.Field = newField;
 
-            var rating = GetRating(nextChild.Field, CurrentOrderedFieldLookUp, nextChild.FieldWidth);
-            if (wasAffectedLineInOrder) rating += 64;
-            nextChild.Rating = rating;
+            nextChild.Disorder = CalcDisorder(nextChild.Field, orderedFieldLookup, nextChild.FieldWidth);
             result.Add(nextChild);
             childIndex++;
         }
+
+        if (result.Count == 0) return null;
 
         result.Sort();
         for (byte ix = 0; ix < result.Count; ix++) result[ix].ChildIndex = ix;
         
         return result;
     }
-
-    public static int GetRating(byte[,] field, Dictionary<byte, Dictionary<byte, byte>> lookup, byte fieldWidth)
+    
+    public static int CalcDisorder(byte[,] field, Dictionary<byte, Dictionary<byte, byte>> lookup, byte fieldWidth)
     {
         var result = 0;
-
         for (byte row = 0; row < fieldWidth; row++)
         {
             for (byte col = 0; col < fieldWidth; col++)

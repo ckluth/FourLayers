@@ -11,7 +11,7 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        var challengeNr = args != null && args.Length > 0 ? byte.Parse(args[0]) : (byte)14;
+        var challengeNr = args != null && args.Length > 0 ? byte.Parse(args[0]) : (byte)16;
 
         RunChallenge(challengeNr);
         
@@ -22,6 +22,7 @@ public class Program
     private static void RunChallenge(byte challengeNr)
     {
         var challenge = FourLayers.Challenges.Single(ch => ch.Number == challengeNr);
+
         var field = challenge.Field;
 
         var st = new Stats(challengeNr, challenge.MaxMoves, challenge.FieldWidth);
@@ -30,14 +31,14 @@ public class Program
         Console.WriteLine(str);
 
         FourLayers.PrintField(field);
-
-        var sw = Stopwatch.StartNew();
-
+        
         Console.WriteLine($"Started: {DateTime.Now:HH:mm:ss}");
         Console.WriteLine();
         Console.WriteLine("Processing...");
 
         MaximizeConsoleWindow();
+
+        var sw = Stopwatch.StartNew();
 
         var (moves, stats) = FourLayers.SolveChallenge(challenge, st);
         
@@ -52,7 +53,7 @@ public class Program
         else
         {
             Console.WriteLine(PrintSessionResults(stats));
-            Console.WriteLine("Moves " + moves.Select(m => m.ToString()).Aggregate((n1, n2) => n1 + "-" + n2));
+            Console.WriteLine($"{moves.Count} Moves: " + moves.Select(m => m.ToString()).Aggregate((n1, n2) => n1 + "-" + n2));
             Console.WriteLine();
 
             var movesStrs = FourLayers.DecodeMoves(moves, challenge.FieldWidth);
