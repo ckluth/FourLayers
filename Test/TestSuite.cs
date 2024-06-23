@@ -7,6 +7,7 @@ namespace FourLayers
 {
     public class TestSuite
     {
+
         [Test]
         public void Test_CreateOrderedField()
         {
@@ -36,7 +37,7 @@ namespace FourLayers
             disorder = FourLayers.CalcDisorder(moveResult.NewField, lookup, fieldWidth);
             Console.WriteLine(disorder);
             Assert.That(disorder, Is.EqualTo(0));
-            Assert.That(moveResult.IsUnchanged, Is.EqualTo(true)); 
+            Assert.That(moveResult.IsUnchanged, Is.EqualTo(true));
 
             // Move 1 => Disorder 2
             moveResult = FourLayers.ProcessMove(field, fieldWidth, lookup, 1);
@@ -83,5 +84,24 @@ namespace FourLayers
             disorder = FourLayers.CalcDisorder(moveResult.NewField, lookup, fieldWidth);
             Console.WriteLine(disorder);
         }
+
+        [Test]
+        public void Test_DeserialzeField()
+        {
+            var str = @"
+  1 1 1 1
+aaa
+1  0  - 0 1
+1 0 , 0 1
+1 11 ; 1 ;       
+
+";
+            var field = FourLayers.DeserializeField(str);
+            FourLayers.PrintField(field.Field, useColors: false);
+            var lookup = FourLayers.CreateOrderedFieldLookUp(field.FieldWidth);
+            var disorder = FourLayers.CalcDisorder(field.Field, lookup, field.FieldWidth);
+            Assert.That(disorder, Is.EqualTo(0));
+        }
+
     }
 }

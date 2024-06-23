@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -50,11 +49,12 @@ public static partial class FourLayers
             }
             return (null, null);
         }
+
         var successFullSlot = slots.FirstOrDefault(c => c.Result.Moves != null);
         var moves = successFullSlot?.Result.Moves;
         return (moves, Stats.Aggregate(resultingStats));
     }
-
+    
     private static (List<byte> Moves, Stats Stats) InternalSolveChallenge(Node root, byte maxMoves, Stats stats, byte slotStart, byte slotSize)
     {
         var stack = new Stack<Node>();
@@ -81,10 +81,11 @@ public static partial class FourLayers
             // Noch keine Children?
             if (!currentNode.AreAllChildrenProcessed && currentNode.Children == null && currentNode.Depth < maxMoves)
             {
+
                 currentNode.Children = currentNode.Depth == 0
                     ? PopulateNode(currentNode, slotStart, slotSize, currentNode.MaxDepth, orderedFieldlookup)
                     : PopulateNode(currentNode, 0, (byte)(currentNode.FieldWidth * 4), currentNode.MaxDepth, orderedFieldlookup);
-                
+
                 // currentNode.Children == null --> Too much Disorder for remaining Moves  
                 if (currentNode.Children != null)
                 {
@@ -109,6 +110,7 @@ public static partial class FourLayers
             currentNode.Parent.AreAllChildrenProcessed = true;
 
             stack.Push(currentNode.Parent);
+
         }
         return (null, stats);
     }
@@ -117,9 +119,8 @@ public static partial class FourLayers
     {
         if (currentNode.Depth > 0)
         {
-            // Der entscheidende Booster! ;)
-
             // Too much Disorder for remaining Moves?
+            // Der entscheidende Booster! ;)
             var depthsLeft = maxDepth - currentNode.Depth;
             var maxSolvableDisorder = (currentNode.FieldWidth - 2) * depthsLeft;
             if (currentNode.Disorder > maxSolvableDisorder)
@@ -155,22 +156,22 @@ public static partial class FourLayers
             }
             else
                 nextChild.SameMoveCounter = 0;
-
-            //
+            
             // Check Nonsense-Move "Forth-Back":
-            //
             var isForthBackMove = Math.Abs(currentNode.MoveFromParent - nextChild.MoveFromParent) == currentNode.FieldWidth;
             if (isForthBackMove) continue;
             
+            // ProcessMove
             var (newField, isUnchanged, wasAffectedLineInOrder) = ProcessMove(currentNode.Field, currentNode.FieldWidth, orderedFieldLookup, move);
             
+            // Check Nonsense-Move "Unchanged":
             if (isUnchanged) continue;
 
+            // Calc Disorder and Add
+            var disorder = CalcDisorder(newField, orderedFieldLookup, nextChild.FieldWidth);
+            nextChild.Disorder = disorder;
             if (wasAffectedLineInOrder) nextChild.Handicap = 64;
-
             nextChild.Field = newField;
-
-            nextChild.Disorder = CalcDisorder(nextChild.Field, orderedFieldLookup, nextChild.FieldWidth);
             result.Add(nextChild);
             childIndex++;
         }
@@ -182,7 +183,7 @@ public static partial class FourLayers
         
         return result;
     }
-    
+
     public static int CalcDisorder(byte[,] field, Dictionary<byte, Dictionary<byte, byte>> lookup, byte fieldWidth)
     {
         var result = 0;
@@ -198,6 +199,38 @@ public static partial class FourLayers
             }
         }
         return result;
+    }
+    
+    public static (int Disorder, ulong HashLow, ulong HashHigh) GetDisorderAndHash(byte[,] field, Dictionary<byte, Dictionary<byte, byte>> lookup, byte fieldWidth)
+    {
+        var disorder = 0;
+        var ix = 0;
+        ulong hashLow = 0;
+        ulong hashHigh = 0;
+        var half = fieldWidth * fieldWidth / 2;
+
+        for (byte row = 0; row < fieldWidth; row++)
+        {
+            for (byte col = 0; col < fieldWidth; col++)
+            {
+                var valueSoll = lookup[row][col];
+                var valueIst = field[row, col];
+
+                var delta = Math.Abs(valueSoll - valueIst);
+                disorder += delta;
+
+                if (ix < half)
+                {
+                    hashLow |= ((ulong)valueIst << (2 * ix));
+                }
+                else
+                {
+                    hashHigh |= ((ulong)valueIst << (2 * (ix - half)));
+                }
+                ix++;
+            }
+        }
+        return (disorder, hashLow, hashHigh);
     }
 }
 
