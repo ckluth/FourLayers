@@ -6,6 +6,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Numerics;
+using System.Text.RegularExpressions;
 
 namespace FourLayers;
 
@@ -268,5 +269,28 @@ public static partial class FourLayers
 
         }
         return result;
+    }
+
+    public static (byte[,] Field, byte FieldWidth) DeserializeField(string strField)
+    {
+        string ExtractDigits(string input)
+        {
+            var result = "";
+            foreach (Match match in new Regex(@"\d").Matches(input))
+                result += match.Value;
+            return result;
+        }
+        var rows = strField.Split("\r\n").Select(ExtractDigits).Where(s => !string.IsNullOrEmpty(s.Trim())).ToArray();
+        var fieldWidth = rows.Length;
+        var result = new byte[fieldWidth,fieldWidth];
+        for (var row = 0; row < fieldWidth; row++)
+        {
+            for (var col = 0; col < fieldWidth; col++)
+            {
+                var ch = rows[row][col];
+                result[row, col] = (byte)(ch - '0');
+            }
+        }
+        return (result, (byte)result.GetLength(0));
     }
 }

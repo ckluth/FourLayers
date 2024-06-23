@@ -11,21 +11,20 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        var challengeNr = args != null && args.Length > 0 ? byte.Parse(args[0]) : (byte)16;
+        var challengeNr = args != null && args.Length > 0 ? byte.Parse(args[0]) : (byte)15;
+        var challenge = FourLayers.Challenges.Single(ch => ch.Number == challengeNr);
 
-        RunChallenge(challengeNr);
-        
+        RunChallenge(challenge);
+
         Console.WriteLine("[PRESS KEY]");
         Console.ReadKey();
     }
 
-    private static void RunChallenge(byte challengeNr)
+    private static void RunChallenge(Challenge challenge)
     {
-        var challenge = FourLayers.Challenges.Single(ch => ch.Number == challengeNr);
-
         var field = challenge.Field;
 
-        var st = new Stats(challengeNr, challenge.MaxMoves, challenge.FieldWidth);
+        var st = new Stats(challenge.Number, challenge.MaxMoves, challenge.FieldWidth);
         
         var str = PrintSessionParameter(st);
         Console.WriteLine(str);
@@ -40,8 +39,17 @@ public class Program
 
         var sw = Stopwatch.StartNew();
 
+//#pragma warning disable CA1416
+//        Console.Beep(800, 300);
+//#pragma warning restore CA1416
+
         var (moves, stats) = FourLayers.SolveChallenge(challenge, st);
-        
+        sw.Stop();
+
+//#pragma warning disable CA1416
+//        Console.Beep(800, 1000);
+//#pragma warning restore CA1416
+
         Console.WriteLine();
         Console.WriteLine("+++ +++ +++ [ELAPSED: " + sw.Elapsed + "] +++ +++ +++ \r\n");
         

@@ -4,7 +4,7 @@ namespace FourLayers;
 
 public class Challenge
 {
-    public int Number { get; set; }
+    public byte Number { get; set; }
 
     public byte[,] Field { get; set; }
     
