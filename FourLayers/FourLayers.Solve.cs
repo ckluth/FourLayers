@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -8,10 +9,12 @@ namespace FourLayers;
 
 public static partial class FourLayers
 {
-    private static int isCancelled = 0;
+    private static int isCancelled;
 
-    public static (List<byte> Moves, Stats Stats) SolveChallenge(Challenge challenge, Stats stats) 
+    public static (List<byte> Moves, Stats Stats) SolveChallenge(Challenge challenge, Stats stats)
     {
+        isCancelled = 0;
+
         Node CreateRoot()
         {
             var root = new Node
@@ -30,13 +33,16 @@ public static partial class FourLayers
         var (slots, kerne) = Slot.CreateSlots(challenge.FieldWidth);
         var resultingStats = new List<Stats>();
 
+        var sw = Stopwatch.StartNew();
+
         try
         {
             Parallel.ForEach(slots, new ParallelOptions { MaxDegreeOfParallelism = kerne }, slot =>
                 {
                     var slotStats = Stats.Clone(stats);
                     var startNode = CreateRoot();
-                    slot.Result = InternalSolveChallenge(startNode, challenge.MaxMoves, slotStats, slot.SlotStart, slot.SlotSize);
+                    slot.Result = InternalSolveChallenge(startNode, challenge.MaxMoves, slotStats, slot.SlotStart,
+                        slot.SlotSize);
                     resultingStats.Add(slotStats);
                 }
             );
@@ -47,19 +53,28 @@ public static partial class FourLayers
             {
                 Console.WriteLine(ex.Message);
             }
+
             return (null, null);
         }
 
         var successFullSlot = slots.FirstOrDefault(c => c.Result.Moves != null);
         var moves = successFullSlot?.Result.Moves;
-        return (moves, Stats.Aggregate(resultingStats));
+
+        var resultStats = Stats.Aggregate(resultingStats);
+        resultStats.Moves = moves;
+        resultStats.Duration = sw.Elapsed;
+
+        return (moves, resultStats);
     }
-    
+
     private static (List<byte> Moves, Stats Stats) InternalSolveChallenge(Node root, byte maxMoves, Stats stats, byte slotStart, byte slotSize)
     {
         var stack = new Stack<Node>();
         stack.Push(root);
+        
         stats.NodesCreated = 1;
+        stats.NodesFollowed = 1;
+
         var orderedFieldlookup = CreateOrderedFieldLookUp(root.FieldWidth);
 
         while (stack.Count > 0)
@@ -69,19 +84,22 @@ public static partial class FourLayers
 
             var currentNode = stack.Pop();
 
-            // Gelöst?
-            stats.NodesCompared++;
-            if (currentNode.IsSolved)
+            if (!currentNode.AreAllChildrenProcessed)
             {
-                Interlocked.Increment(ref isCancelled);
-                var moves = currentNode.Path;
-                return (moves, stats);
+                // Gelöst?
+                stats.NodesCompared++;
+
+                if (currentNode.IsSolved)
+                {
+                    Interlocked.Increment(ref isCancelled);
+                    var moves = currentNode.Path;
+                    return (moves, stats);
+                }
             }
 
             // Noch keine Children?
             if (!currentNode.AreAllChildrenProcessed && currentNode.Children == null && currentNode.Depth < maxMoves)
             {
-
                 currentNode.Children = currentNode.Depth == 0
                     ? PopulateNode(currentNode, slotStart, slotSize, currentNode.MaxDepth, orderedFieldlookup)
                     : PopulateNode(currentNode, 0, (byte)(currentNode.FieldWidth * 4), currentNode.MaxDepth, orderedFieldlookup);
@@ -89,7 +107,9 @@ public static partial class FourLayers
                 // currentNode.Children == null --> Too much Disorder for remaining Moves  
                 if (currentNode.Children != null)
                 {
-                    stats.NodesCreated += currentNode.Children.Count;
+                    stats.NodesCreated += (currentNode.FieldWidth * 4);
+                    stats.NodesFollowed += currentNode.Children.Count;
+                    stats.NodesDiscarded += ((currentNode.FieldWidth * 4) - currentNode.Children.Count);
                     stack.Push(currentNode.Children[0]);
                     continue;
                 }
@@ -132,6 +152,7 @@ public static partial class FourLayers
         var result = new List<Node>();
         byte childIndex = 0;
 
+        // Für jeden move des CurrentNode einen neuen ChildNode erzeugen und ggf. verwerfen, oder sortierte den ChildNodes hinzufügen 
         for (var move = slotStart; move < slotStart + slotSize; move++)
         {
             var nextChild = new Node
@@ -178,20 +199,24 @@ public static partial class FourLayers
 
         if (result.Count == 0) return null;
 
+        // Sort (by Disorder and Handicap)
         result.Sort();
+
+        // Update ChildIndex-Values
         for (byte ix = 0; ix < result.Count; ix++) result[ix].ChildIndex = ix;
         
         return result;
     }
 
-    public static int CalcDisorder(byte[,] field, Dictionary<byte, Dictionary<byte, byte>> lookup, byte fieldWidth)
+    public static int CalcDisorder(byte[,] field, Dictionary<byte, Dictionary<byte, byte>> orderedFieldlookup, byte fieldWidth)
     {
+        // Für jeden Cell-Value das Delta zum jeweiligen "Orderd-Cell-Value" ermitteln und auf-addieren:
         var result = 0;
         for (byte row = 0; row < fieldWidth; row++)
         {
             for (byte col = 0; col < fieldWidth; col++)
             {
-                var valueSoll = lookup[row][col];
+                var valueSoll = orderedFieldlookup[row][col];
                 var valueIst = field[row, col];
 
                 var delta = Math.Abs(valueSoll - valueIst);
@@ -203,6 +228,17 @@ public static partial class FourLayers
     
     public static (int Disorder, ulong HashLow, ulong HashHigh) GetDisorderAndHash(byte[,] field, Dictionary<byte, Dictionary<byte, byte>> lookup, byte fieldWidth)
     {
+        //
+        // Ermittelt für das gegebene Field eine eindeutige 128 Bit-Prüfsumme (in Form von 2 64-Bit-Werten) 
+        // Aus Performance-Gründe wird in dem Loop auch direkt der Disorder-Wert berechnet.
+        //
+        // Aktuell nicht genutzt.
+        //
+        // Wurde für das Feature "Already-Visited" benötigt; aus Performance und -Memory-Gründen (bislang?) kein sinnvolle Implementierung gefunden...
+        //
+        // Könnte noch nüztlich sein...
+        //
+
         var disorder = 0;
         var ix = 0;
         ulong hashLow = 0;

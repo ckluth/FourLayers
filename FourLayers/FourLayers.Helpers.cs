@@ -32,7 +32,7 @@ public static partial class FourLayers
         return result;
     }
 
-    public static (byte[,] NewField, bool IsUnchanged, bool WasAffectedLineInOrder) ProcessMove(byte[,] oldField, byte fieldWidth, Dictionary<byte, Dictionary<byte, byte>> lookup, byte move)
+    public static (byte[,] NewField, bool IsUnchanged, bool WasAffectedLineInOrder) ProcessMove(byte[,] oldField, byte fieldWidth, Dictionary<byte, Dictionary<byte, byte>> orderedFieldLookup, byte move)
     {
         var newField = (byte[,])oldField.Clone();
 
@@ -44,12 +44,12 @@ public static partial class FourLayers
         if (isColumn && isForwards) // Column, Down
         {
             var last = newField[fieldWidth - 1, move];
-            var wasAffectedLineInOrder = last == lookup[(byte)(fieldWidth - 1)][move];
+            var wasAffectedLineInOrder = last == orderedFieldLookup[(byte)(fieldWidth - 1)][move];
 
             for (var i = fieldWidth - 1; i > 0; i--)
             {
                 isUnchanged = isUnchanged && newField[i - 1, move] == last;
-                wasAffectedLineInOrder = wasAffectedLineInOrder && newField[i - 1, move] == lookup[(byte)(i - 1)][move];
+                wasAffectedLineInOrder = wasAffectedLineInOrder && newField[i - 1, move] == orderedFieldLookup[(byte)(i - 1)][move];
 
                 newField[i, move] = newField[i - 1, move];
             }
@@ -63,12 +63,12 @@ public static partial class FourLayers
             var col = move - fieldWidth;
             var first = newField[0, col];
 
-            var wasAffectedLineInOrder = first == lookup[0][(byte)col];
+            var wasAffectedLineInOrder = first == orderedFieldLookup[0][(byte)col];
 
             for (var i = 0; i < fieldWidth - 1; i++)
             {
                 isUnchanged = isUnchanged && newField[i + 1, col] == first;
-                wasAffectedLineInOrder = wasAffectedLineInOrder && newField[i + 1, col] == lookup[(byte)(i + 1)][(byte)col];
+                wasAffectedLineInOrder = wasAffectedLineInOrder && newField[i + 1, col] == orderedFieldLookup[(byte)(i + 1)][(byte)col];
 
                 newField[i, col] = newField[i + 1, col];
             }
@@ -81,12 +81,12 @@ public static partial class FourLayers
             var row = move - fieldWidth * 2;
             var last = newField[row, fieldWidth - 1];
 
-            var wasAffectedLineInOrder = last == lookup[(byte)row][(byte)(fieldWidth - 1)];
+            var wasAffectedLineInOrder = last == orderedFieldLookup[(byte)row][(byte)(fieldWidth - 1)];
 
             for (var i = fieldWidth - 1; i > 0; i--)
             {
                 isUnchanged = isUnchanged && newField[row, i - 1] == last;
-                wasAffectedLineInOrder = wasAffectedLineInOrder && newField[row, i - 1] == lookup[(byte)row][(byte)(i - 1)];
+                wasAffectedLineInOrder = wasAffectedLineInOrder && newField[row, i - 1] == orderedFieldLookup[(byte)row][(byte)(i - 1)];
 
                 newField[row, i] = newField[row, i - 1];
             }
@@ -99,12 +99,12 @@ public static partial class FourLayers
             var row = move - fieldWidth * 3;
             var first = newField[row, 0];
 
-            var wasAffectedLineInOrder = first == lookup[(byte)row][0];
+            var wasAffectedLineInOrder = first == orderedFieldLookup[(byte)row][0];
 
             for (var i = 0; i < fieldWidth - 1; i++)
             {
                 isUnchanged = isUnchanged && newField[row, i + 1] == first;
-                wasAffectedLineInOrder = wasAffectedLineInOrder && newField[row, i + 1] == lookup[(byte)row][(byte)(i + 1)];
+                wasAffectedLineInOrder = wasAffectedLineInOrder && newField[row, i + 1] == orderedFieldLookup[(byte)row][(byte)(i + 1)];
 
                 newField[row, i] = newField[row, i + 1];
             }
@@ -158,10 +158,10 @@ public static partial class FourLayers
         return result;
     }
 
-    public static byte[,] CreateOrderedField(Dictionary<byte, Dictionary<byte, byte>> lookup)
+    public static byte[,] CreateOrderedField(Dictionary<byte, Dictionary<byte, byte>> orderedFieldLookup)
     {
         var field = new byte[8, 8];        
-        foreach (var row in lookup)
+        foreach (var row in orderedFieldLookup)
         {
             foreach (var col in row.Value)
             {

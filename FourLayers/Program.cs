@@ -1,9 +1,14 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Diagnostics;
+using System.IO;
+using System.Reflection;
 using System.Text;
 using System.Runtime.InteropServices;
 using System.Threading;
+using System.Xml;
+using System.Text.Json;
 
 namespace FourLayers;
 
@@ -11,67 +16,96 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        var challengeNr = args != null && args.Length > 0 ? byte.Parse(args[0]) : (byte)15;
-        var challenge = FourLayers.Challenges.Single(ch => ch.Number == challengeNr);
+        Thread.Sleep(100);
 
-        RunChallenge(challenge);
+#pragma warning disable CA1416
+        Console.Beep(800, 300);
+#pragma warning restore CA1416
+
+        MaximizeConsoleWindow();
+
+        //Main_RunOneChallenge(args, 15);
+        Main_RunChallengeSequence([19]);
+
+#pragma warning disable CA1416
+        Console.Beep(1200, 1000);
+#pragma warning restore CA1416
 
         Console.WriteLine("[PRESS KEY]");
         Console.ReadKey();
     }
 
-    private static void RunChallenge(Challenge challenge)
+    public static void Main_RunOneChallenge(string[] args, byte nr)
+    {
+        var challengeNr = args != null && args.Length > 0 ? byte.Parse(args[0]) : nr;
+        var challenge = FourLayers.Challenges.Single(ch => ch.Number == challengeNr);
+
+        RunOneChallenge(challenge, Console.WriteLine);
+    }
+
+    public static void Main_RunChallengeSequence(List<byte> challengeNumbers)
+    {
+        if (challengeNumbers == null)
+        {
+            challengeNumbers = new List<byte>();
+            for (byte i = 1; i <= 18; i++) challengeNumbers.Add(i);
+            challengeNumbers = challengeNumbers.Except(new List<byte> { 18 }).ToList();
+            //challengeNumbers = challengeNumbers.Except(new List<byte> { 18, 9, 15, 16 }).ToList();
+        }
+
+        DoRunChallengeSequence(challengeNumbers);
+    }
+
+    public static void DoRunChallengeSequence(List<byte> challengeNumbers)
+    {
+        var challenges = challengeNumbers.Select(ch => FourLayers.Challenges.Single(c => c.Number == ch)).ToList();
+        var allStats = challenges.Select(challenge => RunOneChallenge(challenge, Console.WriteLine)).ToList();
+        var jsonString = Stats.Serialze2Json(allStats);
+        
+        var folder = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+        var challengNumbersStr = challenges.Select(c => c.Number.ToString()).Aggregate((n1, n2) => n1 + "-" + n2);
+        var fname = $"{DateTime.Now:yyyy-MM-dd_HH-mm-ss}-({challengNumbersStr}).json";
+        var fpath = Path.Combine(folder!, fname);
+        File.WriteAllText(fpath, jsonString, Encoding.UTF8);
+        Console.WriteLine($"Stats written to {fpath}\r\n");
+
+        var csvString = Stats.Serialze2Csv(allStats);
+        fname = fname.Replace(".json", ".csv");
+        fpath = Path.Combine(folder!, fname);
+        File.WriteAllText(fpath, csvString, Encoding.UTF8);
+        Console.WriteLine($"Stats written to {fpath}\r\n");
+    }
+
+    private static Stats RunOneChallenge(Challenge challenge, Action<string> cw = null)
     {
         var field = challenge.Field;
 
-        var st = new Stats(challenge.Number, challenge.MaxMoves, challenge.FieldWidth);
-        
-        var str = PrintSessionParameter(st);
-        Console.WriteLine(str);
+        var statsIn = new Stats(challenge.Number, challenge.MaxMoves, challenge.FieldWidth);
 
-        FourLayers.PrintField(field);
-        
-        Console.WriteLine($"Started: {DateTime.Now:HH:mm:ss}");
-        Console.WriteLine();
-        Console.WriteLine("Processing...");
+        var str = PrintSessionParameter(statsIn);
 
-        MaximizeConsoleWindow();
+        cw?.Invoke(str);
 
-        var sw = Stopwatch.StartNew();
+        if (cw != null)
+            FourLayers.PrintField(field);
 
-//#pragma warning disable CA1416
-//        Console.Beep(800, 300);
-//#pragma warning restore CA1416
+        cw?.Invoke($"Started: {DateTime.Now:HH:mm:ss}");
+        cw?.Invoke("\r\nProcessing...\r\n");
 
-        var (moves, stats) = FourLayers.SolveChallenge(challenge, st);
-        sw.Stop();
+        var (moves, stats) = FourLayers.SolveChallenge(challenge, statsIn);
 
-//#pragma warning disable CA1416
-//        Console.Beep(800, 1000);
-//#pragma warning restore CA1416
+        cw?.Invoke(PrintSessionResults(stats));
 
-        Console.WriteLine();
-        Console.WriteLine("+++ +++ +++ [ELAPSED: " + sw.Elapsed + "] +++ +++ +++ \r\n");
-        
-        if (moves == null)
+        if (cw != null && moves != null)
         {
-            Console.WriteLine("---NO SOLUTION---\r\n");
-            Console.WriteLine(PrintSessionResults(stats));
-        }
-        else
-        {
-            Console.WriteLine(PrintSessionResults(stats));
-            Console.WriteLine($"{moves.Count} Moves: " + moves.Select(m => m.ToString()).Aggregate((n1, n2) => n1 + "-" + n2));
-            Console.WriteLine();
-
             var movesStrs = FourLayers.DecodeMoves(moves, challenge.FieldWidth);
-            movesStrs.ForEach(Console.WriteLine);
-            Console.WriteLine();
-
+            movesStrs.ForEach(cw);
+            cw?.Invoke(string.Empty);
             field = FourLayers.ProcessMoves(field, moves);
             FourLayers.PrintField(field);
         }
-        
+
+        return stats;
     }
 
     public static string PrintSessionParameter(Stats stats)
@@ -91,8 +125,12 @@ public class Program
     {
         var sb = new StringBuilder();
         const byte len = 15;
+        sb.AppendLine($"{nameof(stats.Duration).PadRight(len, ' ')}: {stats.Duration}.");
         sb.AppendLine($"{nameof(stats.NodesCreated).PadRight(len, ' ')}: {stats.NodesCreated:N0}");
+        sb.AppendLine($"{nameof(stats.NodesFollowed).PadRight(len, ' ')}: {stats.NodesFollowed:N0}");
         sb.AppendLine($"{nameof(stats.NodesCompared).PadRight(len, ' ')}: {stats.NodesCompared:N0}");
+        sb.AppendLine($"{nameof(stats.NodesDiscarded).PadRight(len, ' ')}: {stats.NodesDiscarded:N0}");
+        sb.AppendLine("\r\n"+stats.MovesStr);
         return sb.ToString();
     }
 
