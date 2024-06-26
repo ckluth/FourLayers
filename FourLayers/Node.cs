@@ -21,6 +21,8 @@ public class Node : IEquatable<Node>, IComparable<Node>
 
     public byte MoveFromParent { get; set; }
 
+    public bool MoveFromParentWasColumnMove { get; set; }
+
     public bool AreAllChildrenProcessed { get; set; }
 
     public int SameMoveCounter { get; set; }
@@ -28,6 +30,9 @@ public class Node : IEquatable<Node>, IComparable<Node>
     public int Disorder { get; set; }
 
     public int Handicap { get; set; }
+
+    public int OneDirectionDelta { get; set; }
+    
 
     public List<byte> Path
     {

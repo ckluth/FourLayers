@@ -11,7 +11,6 @@ namespace FourLayers;
 public class Stats
 {
     private Stats() {}
-
     public Stats(byte challengeNr, byte maxMoves, byte fieldWidth)
     {
         this.ChallengeNr = challengeNr;
@@ -24,7 +23,6 @@ public class Stats
             MaxNodes = BigInteger.Add(MaxNodes, BigInteger.Pow(this.FieldWidth*4, i + 1));
         }
     }
-    
     public byte ChallengeNr { get; init; }
     public byte FieldWidth { get; init; }
     public byte MaxMoves { get; init; }
@@ -37,7 +35,6 @@ public class Stats
     public TimeSpan Duration { get; set; }
     public List<byte> Moves { get; set; }
     public string MovesStr => this.Moves == null ? "---NO SOLUTION---" : $"{this.Moves.Count} Moves: " + this.Moves.Select(m => m.ToString()).Aggregate((n1, n2) => n1 + "-" + n2);
-
     public static Stats Clone(Stats stats)
     {
         var result = new Stats
@@ -54,7 +51,6 @@ public class Stats
 
         return result;
     }
-
     public static Stats Aggregate(List<Stats> stats)
     {
         var result = Clone(stats.First());
@@ -68,14 +64,12 @@ public class Stats
 
         return result;
     }
-
     public static string Serialze2Json(List<Stats> statsList)
     {
         var options = new JsonSerializerOptions { WriteIndented = true };
         var jsonString = JsonSerializer.Serialize(statsList, options);
         return jsonString;
     }
-
     public static string Serialze2Csv(List<Stats> statsList)
     {
         var sb = new StringBuilder();
