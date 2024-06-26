@@ -21,11 +21,12 @@ public class Program
 #pragma warning disable CA1416
         Console.Beep(800, 300);
 #pragma warning restore CA1416
-
         MaximizeConsoleWindow();
 
-        //Main_RunOneChallenge(args, 15);
-        Main_RunChallengeSequence([19]);
+        Main_RunOneChallenge(args, 9);
+
+        //Main_RunChallengeSequence([19]);
+        //Main_RunChallengeSequence();
 
 #pragma warning disable CA1416
         Console.Beep(1200, 1000);
@@ -43,12 +44,12 @@ public class Program
         RunOneChallenge(challenge, Console.WriteLine);
     }
 
-    public static void Main_RunChallengeSequence(List<byte> challengeNumbers)
+    public static void Main_RunChallengeSequence(List<byte> challengeNumbers = null)
     {
         if (challengeNumbers == null)
         {
             challengeNumbers = new List<byte>();
-            for (byte i = 1; i <= 18; i++) challengeNumbers.Add(i);
+            for (byte i = 1; i <= 19; i++) challengeNumbers.Add(i);
             challengeNumbers = challengeNumbers.Except(new List<byte> { 18 }).ToList();
             //challengeNumbers = challengeNumbers.Except(new List<byte> { 18, 9, 15, 16 }).ToList();
         }
@@ -60,18 +61,18 @@ public class Program
     {
         var challenges = challengeNumbers.Select(ch => FourLayers.Challenges.Single(c => c.Number == ch)).ToList();
         var allStats = challenges.Select(challenge => RunOneChallenge(challenge, Console.WriteLine)).ToList();
-        var jsonString = Stats.Serialze2Json(allStats);
         
         var folder = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
         var challengNumbersStr = challenges.Select(c => c.Number.ToString()).Aggregate((n1, n2) => n1 + "-" + n2);
         var fname = $"{DateTime.Now:yyyy-MM-dd_HH-mm-ss}-({challengNumbersStr}).json";
         var fpath = Path.Combine(folder!, fname);
+        var jsonString = Stats.Serialze2Json(allStats);
         File.WriteAllText(fpath, jsonString, Encoding.UTF8);
         Console.WriteLine($"Stats written to {fpath}\r\n");
-
-        var csvString = Stats.Serialze2Csv(allStats);
+        
         fname = fname.Replace(".json", ".csv");
         fpath = Path.Combine(folder!, fname);
+        var csvString = Stats.Serialze2Csv(allStats);
         File.WriteAllText(fpath, csvString, Encoding.UTF8);
         Console.WriteLine($"Stats written to {fpath}\r\n");
     }
@@ -133,8 +134,7 @@ public class Program
         sb.AppendLine("\r\n"+stats.MovesStr);
         return sb.ToString();
     }
-
-
+    
     #region MaximizeConsoleWindow
 
     [DllImport("user32.dll")]
@@ -145,7 +145,6 @@ public class Program
     static extern bool GetWindowRect(IntPtr hWnd, out Rect lpRect);
     [DllImport("user32.dll")]
     static extern bool MoveWindow(IntPtr hWnd, int x, int y, int nWidth, int nHeight, bool bRepaint);
-
     private static void MaximizeConsoleWindow()
     {
         Thread.Sleep(100);

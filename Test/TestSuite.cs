@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.Intrinsics.X86;
 using NUnit.Framework;
@@ -12,10 +13,9 @@ namespace FourLayers
         public void Test_CreateOrderedField()
         {
             const byte fieldWidth = 8;
-            var lookup = FourLayers.CreateOrderedFieldLookUp(fieldWidth);
-            var field = FourLayers.CreateOrderedField(lookup);
+            var field = FourLayers.CreateOrderedField(fieldWidth);
             FourLayers.PrintField(field, useColors: false);
-            var disorder = FourLayers.CalcDisorder(field, lookup, fieldWidth);
+            var disorder = FourLayers.CalcDisorder(field, field, fieldWidth);
             Console.WriteLine(disorder);
             Assert.That(disorder, Is.EqualTo(0));
         }
@@ -24,25 +24,25 @@ namespace FourLayers
         public void Test_CalcDisorder()
         {
             const byte fieldWidth = 8;
-            var lookup = FourLayers.CreateOrderedFieldLookUp(fieldWidth);
-            var field = FourLayers.CreateOrderedField(lookup);
+            var orderedFieldLookup = FourLayers.CreateOrderedField(fieldWidth);
+            var field = (byte[,])orderedFieldLookup.Clone();
             FourLayers.PrintField(field, useColors: false);
-            var disorder = FourLayers.CalcDisorder(field, lookup, fieldWidth);
+            var disorder = FourLayers.CalcDisorder(field, orderedFieldLookup, fieldWidth);
             Console.WriteLine(disorder);
             Assert.That(disorder, Is.EqualTo(0));
 
             // Move 0 => IsUnchanged => Still Disorder 0 
-            var moveResult = FourLayers.ProcessMove(field, fieldWidth, lookup, 0);
+            var moveResult = FourLayers.ProcessMove(field, fieldWidth, orderedFieldLookup, 0);
             FourLayers.PrintField(moveResult.NewField, useColors: false);
-            disorder = FourLayers.CalcDisorder(moveResult.NewField, lookup, fieldWidth);
+            disorder = FourLayers.CalcDisorder(moveResult.NewField, orderedFieldLookup, fieldWidth);
             Console.WriteLine(disorder);
             Assert.That(disorder, Is.EqualTo(0));
             Assert.That(moveResult.IsUnchanged, Is.EqualTo(true));
 
             // Move 1 => Disorder 2
-            moveResult = FourLayers.ProcessMove(field, fieldWidth, lookup, 1);
+            moveResult = FourLayers.ProcessMove(field, fieldWidth, orderedFieldLookup, 1);
             FourLayers.PrintField(moveResult.NewField, useColors: false);
-            disorder = FourLayers.CalcDisorder(moveResult.NewField, lookup, fieldWidth);
+            disorder = FourLayers.CalcDisorder(moveResult.NewField, orderedFieldLookup, fieldWidth);
             Console.WriteLine(disorder);
             Assert.That(disorder, Is.EqualTo(2));
             Assert.That(moveResult.IsUnchanged, Is.EqualTo(false));
@@ -70,18 +70,18 @@ namespace FourLayers
         public void Test_CheckDisorder()
         {
             const byte fieldWidth = 8;
-            var lookup = FourLayers.CreateOrderedFieldLookUp(fieldWidth);
-            var field = FourLayers.CreateOrderedField(lookup);
+            var ordereFieldlookup = FourLayers.CreateOrderedField(fieldWidth);
+            var field = FourLayers.CreateOrderedField(fieldWidth);
 
             FourLayers.PrintField(field, useColors: false);
-            var moveResult = FourLayers.ProcessMove(field, fieldWidth, lookup, 3);
+            var moveResult = FourLayers.ProcessMove(field, fieldWidth, ordereFieldlookup, 3);
             FourLayers.PrintField(moveResult.NewField, useColors: false);
-            var disorder = FourLayers.CalcDisorder(moveResult.NewField, lookup, fieldWidth);
+            var disorder = FourLayers.CalcDisorder(moveResult.NewField, ordereFieldlookup, fieldWidth);
             Console.WriteLine(disorder);
 
-            moveResult = FourLayers.ProcessMove(moveResult.NewField, fieldWidth, lookup, 4);
+            moveResult = FourLayers.ProcessMove(moveResult.NewField, fieldWidth, ordereFieldlookup, 4);
             FourLayers.PrintField(moveResult.NewField, useColors: false);
-            disorder = FourLayers.CalcDisorder(moveResult.NewField, lookup, fieldWidth);
+            disorder = FourLayers.CalcDisorder(moveResult.NewField, ordereFieldlookup, fieldWidth);
             Console.WriteLine(disorder);
         }
 
@@ -98,7 +98,7 @@ aaa
 ";
             var field = FourLayers.DeserializeField(str);
             FourLayers.PrintField(field.Field, useColors: false);
-            var lookup = FourLayers.CreateOrderedFieldLookUp(field.FieldWidth);
+            var lookup = FourLayers.CreateOrderedField(field.FieldWidth);
             var disorder = FourLayers.CalcDisorder(field.Field, lookup, field.FieldWidth);
             Assert.That(disorder, Is.EqualTo(0));
         }
